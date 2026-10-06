@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Прайс-лист</title>
+<style>
+  :root{
+    --bg:#f3f5f2; --panel:#ffffff; --ink:#1d2a24; --muted:#6a7770;
+    --line:#dde3de; --accent:#1f6f54; --accent-ink:#ffffff; --warn:#b3261e; --hl:#fff1b8; --warnbg:#fdecea;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#121815; --panel:#1b2420; --ink:#e6ede9; --muted:#93a29a; --line:#2c3832; --accent:#46b88c; --accent-ink:#06130d; --warn:#ff8a80; --hl:#4a4217; --warnbg:#3a1f1d;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:.9rem}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  input,select,button{font:inherit;color:inherit}
+  input,select{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-width:0}
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  #q{flex:1 1 260px;font-size:1.05rem}
+  button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  button.danger{color:var(--warn)}
+  details{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
+  summary{padding:10px 14px;cursor:pointer;font-weight:600}
+  .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:0 14px 14px}
+  .form .full{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+  .tablebox{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:860px}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+  td.name{min-width:240px;white-space:normal}
+  th{font-size:.85rem;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  td.num,th.num{text-align:right}
+  td input.p{width:90px;text-align:right;padding:5px 8px}
+  td input.note{width:100%;min-width:90px;padding:5px 8px}
+  tr.bad{background:var(--warnbg)}
+  .flag{color:var(--warn);cursor:help;margin-right:4px}
+  mark{background:var(--hl);color:inherit;border-radius:3px}
+  .meta{color:var(--muted);font-size:.9rem;margin:10px 2px}
+  .empty{padding:28px;text-align:center;color:var(--muted)}
+  .bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 14px 14px}
+  .bulk input{width:90px}
+  #receipt{background:var(--panel);border:1px solid var(--accent);border-radius:10px;margin-bottom:14px;padding:12px 14px}
+  #receipt h2{font-size:1.1rem;margin:0}
+  .rhead{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .rtools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .rlist{max-height:340px;overflow:auto}
+  .rlist table{min-width:520px}
+  .rlist td.name{min-width:200px}
+  .rlist input.q{width:70px;text-align:right;padding:5px 8px}
+  input.chg{border-color:var(--accent)}
+  .total{display:flex;justify-content:flex-end;gap:12px;align-items:baseline;margin-top:10px;font-size:1.25rem;font-weight:700}
+  .rt{font-size:.85rem;color:var(--muted);font-weight:400;margin-left:6px}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+  .modal[hidden]{display:none}
+  .sheet{background:var(--panel);border-radius:12px;padding:20px;max-width:520px;width:100%;max-height:90vh;overflow:auto}
+  .sheet h2{margin:0}
+  .sheet .when{color:var(--muted);margin:2px 0 12px}
+  .sheet table{min-width:0}
+  .sheet td{white-space:normal}
+  .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Прайс-лист</h1>
+  <p class="sub">Закупка — цена поставки, Опт — для оптовиков, Розница — для розничных покупателей. Данные хранятся в этом браузере.</p>
+
+  <div class="bar">
+    <input id="q" type="search" placeholder="Поиск: творог 350, спред, байлиг…" autofocus>
+    <select id="cat"><option value="">Все категории</option></select>
+    <label style="display:flex;align-items:center;gap:6px"><input id="badOnly" type="checkbox"> Только подозрительные цены</label>
+  </div>
+
+  <details>
+    <summary>Добавить товар</summary>
+    <div class="form">
+      <input id="n_name" placeholder="Название, жирность, вес">
+      <input id="n_cat" placeholder="Категория">
+      <input id="n_p1" type="number" min="0" step="any" placeholder="Закупка">
+      <input id="n_p2" type="number" min="0" step="any" placeholder="Опт">
+      <input id="n_p3" type="number" min="0" step="any" placeholder="Розница">
+      <input id="n_note" placeholder="Примечание">
+      <div class="full"><button class="primary" id="add">Добавить</button></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Массовое изменение цен (для найденных товаров)</summary>
+    <div class="bulk">
+      <span>Изменить</span>
+      <select id="target">
+        <option value="p1">Закупку</option>
+        <option value="p2">Опт</option>
+        <option value="p3">Розницу</option>
+        <option value="all">Все три цены</option>
+      </select>
+      <span>на</span>
+      <input id="pct" type="number" step="any" placeholder="10">
+      <span>% (минус — скидка)</span>
+      <button class="primary" id="applyPct">Применить</button>
+    </div>
+  </details>
+
+  <div class="bar">
+    <button id="export">Экспорт CSV</button>
+    <button id="importBtn">Импорт CSV</button>
+    <input id="file" type="file" accept=".csv,text/csv" hidden>
+    <button id="reset">Вернуть исходный прайс</button>
+    <button class="danger" id="clear">Очистить всё</button>
+  </div>
+
+  <section id="receipt" hidden>
+    <div class="rhead">
+      <h2>Чек <span class="rt" id="rtime"></span></h2>
+      <div class="rtools">
+        <label>Цены по: <select id="rtier">
+          <option value="p3">Розница</option>
+          <option value="p2">Опт</option>
+          <option value="p1">Закупка</option>
+        </select></label>
+        <button id="rcopy">Копировать</button>
+        <button id="rshow">Показать</button>
+        <button class="danger" id="rclear">Очистить чек</button>
+      </div>
+    </div>
+    <div class="rlist">
+      <table>
+        <thead><tr>
+          <th>Товар</th>
+          <th class="num">Цена</th>
+          <th class="num">Кол-во</th>
+          <th class="num">Сумма</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="rrows"></tbody>
+      </table>
+    </div>
+    <div class="total"><span>Итого:</span><span id="rtotal">0</span></div>
+  </section>
+
+  <div class="tablebox">
+    <table>
+      <thead><tr>
+        <th data-k="name">Название</th>
+        <th data-k="cat">Категория</th>
+        <th data-k="p1" class="num">Закупка</th>
+        <th data-k="p2" class="num">Опт</th>
+        <th data-k="p3" class="num">Розница</th>
+        <th data-k="m" class="num" title="Розница к закупке">Наценка</th>
+        <th>Примечание</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="empty" class="empty" hidden>Ничего не найдено. Измените запрос или добавьте товар.</div>
+  </div>
+  <div class="meta" id="count"></div>
+</div>
+<div id="viewer" class="modal" hidden role="dialog" aria-modal="true" aria-label="Чек">
+  <div class="sheet">
+    <h2>Чек</h2>
+    <div class="when" id="vtime"></div>
+    <table><tbody id="vrows"></tbody></table>
+    <div class="total"><span>Итого:</span><span id="vtotal"></span></div>
+    <div style="text-align:right;margin-top:14px"><button class="primary" id="vclose">Закрыть</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = "price-list-v2";
+
+// [название, категория, закупка, опт, розница, примечание]
+const SEED = [
+  ["Творожная масса (180г)","Творожная масса",365,400,430,""],
+  ["Творожная масса (350г)","Творожная масса",700,770,800,""],
+  ["Творог зерно 350г (12%) (контейнер)","Творог",890,960,800,""],
+  ["Творог зерно (пакет) 350г (18%)","Творог",635,700,750,""],
+  ["Творог зерно (пакет) 500г (18%)","Творог",795,880,920,""],
+  ["Творог 3кг (18%) гофра","Творог",4155,4580,4780,""],
+  ["Творог «Деревенский» 5кг (20%) гофра","Творог",7065,7780,8130,""],
+  ["Байлиг, Аяла 500г (15%) (кувшин)","Байлиг",745,820,850,""],
+  ["Байлиг, Аяла (125г) (кувшин)","Байлиг",820,900,930,""],
+  ["Байлиг, Маслице 350 (15%) традиционная (стакан)","Байлиг",485,540,570,""],
+  ["Байлиг домашняя (стакан) (15%)","Байлиг",505,560,590,""],
+  ["Май Крестьянское (особое) (180г) (Покровский 72,5%)","Масло",470,520,550,"эколин"],
+  ["Май Крестьянское (особое) (400г)","Масло",1025,1130,1200,""],
+  ["Крестьянское (фольга рол) (450г) 72,5%","Масло",2190,2410,2450,""],
+  ["Сладкослив. (Особое) 400г 82,5%","Масло",1230,1360,1390,""],
+  ["Сл-сл. Покровской 82,5% (5кг)","Масло",3050,3450,3480,"эколин"],
+  ["Шокол. 57% (180г)","Масло",405,450,480,""],
+  ["Шокол. 57% (400г)","Масло",875,970,1000,""],
+  ["Масло Крестьянское 72,5% (180 г)","Масло",960,1060,1100,""],
+  ["Масло Коровье 82,5% (180 г)","Масло",1160,1280,1330,""],
+  ["Спред Особое (833г) 72,5%","Спред",1770,1950,2040,""],
+  ["Спред Покровский 400г 82,5%","Спред",865,950,1000,"эколин"],
+  ["Спред Покровский 180г 82,5%","Спред",440,480,500,"эколин"],
+  ["Спред Покровский 400г 82,5% (нижняя строчка)","Спред",940,1040,1080,""],
+  ["Спред Жайлау облегченное 60% (180 г)","Спред",200,220,250,""],
+  ["Спред Жайлау облегченное 60% (450 г)","Спред",530,560,590,""],
+  ["Спред Жайлау сливочный вкус 72,5% (180 г)","Спред",290,320,350,""],
+  ["Спред Жайлау сливочный вкус 72,5% (450 г)","Спред",630,690,780,""]
+];
+
+function seed(){ return SEED.map(r=>({id:uid(),name:r[0],cat:r[1],p1:r[2],p2:r[3],p3:r[4],note:r[5]})); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function load(){
+  try { const d = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(d)) return d; } catch(e){}
+  return seed();
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){ toast("Не удалось сохранить"); } }
+
+let items = load();
+let sortKey = "name", sortDir = 1;
+
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("show"),1800); }
+function fmt(n){ return Number(n).toLocaleString("ru-RU"); }
+function markup(p){ return p.p1>0 ? (p.p3-p.p1)/p.p1*100 : 0; }
+function problem(p){
+  if (p.p2 < p.p1) return "Опт ниже закупки";
+  if (p.p3 < p.p2) return "Розница ниже опта";
+  return "";
+}
+
+function filtered(){
+  const words = $("q").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const cat = $("cat").value;
+  const bad = $("badOnly").checked;
+  return items.filter(p=>{
+    if (cat && p.cat !== cat) return false;
+    if (bad && !problem(p)) return false;
+    const hay = (p.name+" "+p.cat+" "+p.note).toLowerCase();
+    return words.every(w=>hay.includes(w));
+  }).sort((a,b)=>{
+    const x = sortKey==="m" ? markup(a) : a[sortKey];
+    const y = sortKey==="m" ? markup(b) : b[sortKey];
+    return (typeof x==="number" ? x-y : String(x).localeCompare(String(y),"ru")) * sortDir;
+  });
+}
+function hl(text){
+  let out = esc(text);
+  $("q").value.trim().split(/\s+/).filter(Boolean).forEach(w=>{
+    const re = new RegExp("("+esc(w).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");
+    out = out.replace(re,"<mark>$1</mark>");
+  });
+  return out;
+}
+function renderCats(){
+  const sel=$("cat"), cur=sel.value;
+  const cats=[...new Set(items.map(p=>p.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ru"));
+  sel.innerHTML='<option value="">Все категории</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join("");
+  sel.value = cats.includes(cur) ? cur : "";
+}
+function render(){
+  const list = filtered();
+  $("rows").innerHTML = list.map(p=>{
+    const pr = problem(p);
+    return `<tr data-id="${p.id}" class="${pr?"bad":""}">
+      <td class="name">${pr?`<span class="flag" title="${pr}">⚠</span>`:""}${hl(p.name)}</td>
+      <td>${hl(p.cat)}</td>
+      <td class="num"><input class="p" data-f="p1" type="number" min="0" step="any" value="${p.p1}" aria-label="Закупка"></td>
+      <td class="num"><input class="p" data-f="p2" type="number" min="0" step="any" value="${p.p2}" aria-label="Опт"></td>
+      <td class="num"><input class="p" data-f="p3" type="number" min="0" step="any" value="${p.p3}" aria-label="Розница"></td>
+      <td class="num">${p.p1>0?Math.round(markup(p))+"%":"—"}</td>
+      <td><input class="note" data-f="note" value="${esc(p.note)}" aria-label="Примечание"></td>
+      <td style="white-space:nowrap"><button class="primary" data-add>+ В чек</button> <button class="danger" data-del>Удалить</button></td>
+    </tr>`;
+  }).join("");
+  $("empty").hidden = list.length > 0;
+  const bad = items.filter(problem).length;
+  $("count").textContent = `Показано ${list.length} из ${items.length}` + (bad ? ` · подозрительных цен: ${bad} (⚠ — опт ниже закупки или розница ниже опта)` : "");
+}
+
+$("rows").addEventListener("change", e=>{
+  const f = e.target.dataset.f; if(!f) return;
+  const p = items.find(x=>x.id===e.target.closest("tr").dataset.id);
+  if (f === "note"){ p.note = e.target.value.trim(); save(); toast("Сохранено"); return; }
+  const v = Number(e.target.value);
+  if (e.target.value==="" || !isFinite(v) || v < 0){ toast("Введите число ≥ 0"); render(); return; }
+  p[f] = v; save(); toast("Сохранено"); render();
+});
+$("rows").addEventListener("click", e=>{
+  if(e.target.matches("[data-add]")){ addToCart(e.target.closest("tr").dataset.id); return; }
+  if(!e.target.matches("[data-del]")) return;
+  const id = e.target.closest("tr").dataset.id;
+  const p = items.find(x=>x.id===id);
+  if(confirm(`Удалить «${p.name}»?`)){ items = items.filter(x=>x.id!==id); save(); renderCats(); render(); }
+});
+document.querySelectorAll("th[data-k]").forEach(th=>th.addEventListener("click",()=>{
+  const k=th.dataset.k; sortDir = sortKey===k ? -sortDir : 1; sortKey=k; render();
+}));
+["q","cat","badOnly"].forEach(id=>$(id).addEventListener("input",render));
+
+$("add").addEventListener("click",()=>{
+  const name=$("n_name").value.trim();
+  const p1=$("n_p1").value, p2=$("n_p2").value, p3=$("n_p3").value;
+  if(!name || p1===""||p2===""||p3===""){ toast("Нужны название и все три цены"); return; }
+  items.push({id:uid(),name,cat:$("n_cat").value.trim(),p1:Number(p1),p2:Number(p2),p3:Number(p3),note:$("n_note").value.trim()});
+  ["n_name","n_cat","n_p1","n_p2","n_p3","n_note"].forEach(i=>$(i).value="");
+  save(); renderCats(); render(); toast("Товар добавлен");
+});
+$("applyPct").addEventListener("click",()=>{
+  const pct=Number($("pct").value);
+  if($("pct").value==="" || !isFinite(pct)){ toast("Введите процент"); return; }
+  const list=filtered();
+  if(!list.length){ toast("Нет товаров в выборке"); return; }
+  const t=$("target").value, fields = t==="all" ? ["p1","p2","p3"] : [t];
+  if(!confirm(`Изменить цены на ${pct}% у ${list.length} товаров?`)) return;
+  list.forEach(p=>fields.forEach(f=>{ p[f] = Math.max(0, Math.round(p[f]*(1+pct/100))); }));
+  save(); render(); toast("Цены обновлены");
+});
+
+/* CSV */
+function toCSV(){
+  const q=s=>`"${String(s).replace(/"/g,'""')}"`;
+  return "\uFEFFname,category,price1,price2,price3,note\n"+items.map(p=>[q(p.name),q(p.cat),p.p1,p.p2,p.p3,q(p.note)].join(",")).join("\n");
+}
+function parseCSV(text){
+  const rows=[]; let row=[], cur="", inQ=false;
+  text=text.replace(/^\uFEFF/,"");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){ if(c=='"'){ if(text[i+1]=='"'){cur+='"';i++;} else inQ=false; } else cur+=c; }
+    else if(c=='"') inQ=true;
+    else if(c==","||c==";"||c=="\t"){ row.push(cur); cur=""; }
+    else if(c=="\n"||c=="\r"){ if(c=="\r"&&text[i+1]=="\n")i++; row.push(cur); cur=""; if(row.some(x=>x!==""))rows.push(row); row=[]; }
+    else cur+=c;
+  }
+  row.push(cur); if(row.some(x=>x!==""))rows.push(row);
+  return rows;
+}
+$("export").addEventListener("click",()=>{
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([toCSV()],{type:"text/csv;charset=utf-8"}));
+  a.download="price-list.csv"; a.click(); URL.revokeObjectURL(a.href);
+});
+$("importBtn").addEventListener("click",()=>$("file").click());
+$("file").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rows=parseCSV(await f.text()); rows.shift();
+  const imported=rows.map(r=>({id:uid(),name:(r[0]||"").trim(),cat:(r[1]||"").trim(),p1:Number(r[2])||0,p2:Number(r[3])||0,p3:Number(r[4])||0,note:(r[5]||"").trim()})).filter(p=>p.name);
+  if(!imported.length){ toast("Файл пуст или неверный формат"); e.target.value=""; return; }
+  if(confirm(`Строк в файле: ${imported.length}. Заменить текущий список? (Отмена — добавить к текущему)`)) items=imported; else items=items.concat(imported);
+  save(); renderCats(); render(); e.target.value=""; toast("Импорт завершён");
+});
+$("reset").addEventListener("click",()=>{ if(confirm("Вернуть исходный прайс? Ваши правки будут потеряны.")){ items=seed(); save(); renderCats(); render(); } });
+$("clear").addEventListener("click",()=>{ if(confirm("Удалить все товары?")){ items=[]; save(); renderCats(); render(); } });
+
+/* Чек */
+const CKEY = "receipt-v1";
+let tier = "p3";
+let cart = (function(){
+  try { const d = JSON.parse(localStorage.getItem(CKEY)); if (Array.isArray(d)) return d; } catch(e){}
+  return [];
+})();
+const TKEY = "receipt-time-v1";
+let cartTime = 0;
+try { cartTime = Number(localStorage.getItem(TKEY)) || 0; } catch(e){}
+function fmtTime(ms){
+  return new Date(ms).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+function saveCart(){
+  if (!cart.length) cartTime = 0;
+  else if (!cartTime) cartTime = Date.now();
+  try {
+    localStorage.setItem(CKEY, JSON.stringify(cart));
+    localStorage.setItem(TKEY, String(cartTime));
+  } catch(e){}
+}
+const r2 = n => Math.round(n*100)/100;
+function lineSum(c){ return r2(c.price*c.qty); }
+function cartTotal(){ return r2(cart.reduce((s,c)=>s+lineSum(c),0)); }
+function listPrice(c){ const p = items.find(x=>x.id===c.pid); return p ? p[tier] : null; }
+
+function renderCart(){
+  $("receipt").hidden = cart.length === 0;
+  $("rtier").value = tier;
+  $("rtime").textContent = cartTime ? fmtTime(cartTime) : "";
+  $("rrows").innerHTML = cart.map(c=>{
+    const base = listPrice(c);
+    const changed = base !== null && c.price !== base;
+    const title = base !== null ? `В прайсе: ${fmt(base)}` : "";
+    return `<tr data-cid="${c.cid}">
+      <td class="name">${esc(c.name)}</td>
+      <td class="num"><input class="p ${changed?"chg":""}" data-cf="price" type="number" min="0" step="any" value="${c.price}" title="${title}" aria-label="Цена в чеке"></td>
+      <td class="num"><input class="q" data-cf="qty" type="number" min="0" step="any" value="${c.qty}" aria-label="Количество"></td>
+      <td class="num" data-sum>${fmt(lineSum(c))}</td>
+      <td class="no-print"><button class="danger" data-cdel aria-label="Убрать из чека">✕</button></td>
+    </tr>`;
+  }).join("");
+  $("rtotal").textContent = fmt(cartTotal());
+}
+function addToCart(id){
+  const p = items.find(x=>x.id===id); if(!p) return;
+  const ex = cart.find(c=>c.pid===id);
+  if (ex) ex.qty += 1;
+  else cart.push({cid:uid(), pid:id, name:p.name, price:p[tier], qty:1});
+  saveCart(); renderCart(); toast("Добавлено в чек");
+}
+$("rrows").addEventListener("input", e=>{
+  const f = e.target.dataset.cf; if(!f) return;
+  const tr = e.target.closest("tr");
+  const c = cart.find(x=>x.cid===tr.dataset.cid);
+  const v = Number(e.target.value);
+  if (e.target.value==="" || !isFinite(v) || v < 0) return;
+  c[f] = v;
+  tr.querySelector("[data-sum]").textContent = fmt(lineSum(c));
+  if (f === "price"){
+    const base = listPrice(c);
+    e.target.classList.toggle("chg", base !== null && c.price !== base);
+  }
+  $("rtotal").textContent = fmt(cartTotal());
+  saveCart();
+});
+$("rrows").addEventListener("click", e=>{
+  if(!e.target.matches("[data-cdel]")) return;
+  const cid = e.target.closest("tr").dataset.cid;
+  cart = cart.filter(c=>c.cid!==cid); saveCart(); renderCart();
+});
+$("rtier").addEventListener("change", e=>{
+  const next = e.target.value;
+  const edited = cart.some(c=>{ const b = listPrice(c); return b !== null && c.price !== b; });
+  if (edited && !confirm("Цены в чеке будут пересчитаны по прайсу, ваши правки пропадут. Продолжить?")){
+    e.target.value = tier; return;
+  }
+  tier = next;
+  cart.forEach(c=>{ const p = items.find(x=>x.id===c.pid); if(p) c.price = p[tier]; });
+  saveCart(); renderCart(); toast("Цены пересчитаны");
+});
+$("rclear").addEventListener("click", ()=>{
+  if(confirm("Очистить чек?")){ cart = []; saveCart(); renderCart(); }
+});
+function showReceipt(){
+  $("vtime").textContent = cartTime ? fmtTime(cartTime) : "";
+  $("vrows").innerHTML = cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num" style="white-space:nowrap">${c.qty} × ${fmt(c.price)}</td><td class="num">${fmt(lineSum(c))}</td></tr>`).join("");
+  $("vtotal").textContent = fmt(cartTotal());
+  $("viewer").hidden = false;
+}
+function closeReceipt(){ $("viewer").hidden = true; }
+$("rshow").addEventListener("click", showReceipt);
+$("vclose").addEventListener("click", closeReceipt);
+$("viewer").addEventListener("click", e=>{ if(e.target === $("viewer")) closeReceipt(); });
+document.addEventListener("keydown", e=>{ if(e.key === "Escape") closeReceipt(); });
+$("rcopy").addEventListener("click", async ()=>{
+  const lines = cart.map(c=>`${c.name} — ${c.qty} × ${fmt(c.price)} = ${fmt(lineSum(c))}`);
+  const text = `Чек от ${fmtTime(cartTime || Date.now())}\n${lines.join("\n")}\nИтого: ${fmt(cartTotal())}`;
+  try { await navigator.clipboard.writeText(text); toast("Чек скопирован"); }
+  catch(e){ toast("Не удалось скопировать"); }
+});
+
+saveCart(); renderCats(); render(); renderCart();
+</script>
+</body>
+</html>
